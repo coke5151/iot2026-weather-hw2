@@ -1,0 +1,13 @@
+[project]
+name = "iot2026-weather-hw2"
+version = "0.1.0"
+description = "114-2 智慧物聯網 HW2：氣象局爬蟲與 AIoT 網站"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "folium>=0.20.0",
+    "pandas>=3.0.2",
+    "python-dotenv>=1.2.2",
+    "requests>=2.33.1",
+    "streamlit>=1.56.0",
+]

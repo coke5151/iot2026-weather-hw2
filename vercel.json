@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "functions": {
+    "api/weather.py": {
+      "maxDuration": 30
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/weather",
+      "methods": ["GET", "OPTIONS"],
+      "dest": "/api/weather.py"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
+}
