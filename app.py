@@ -10,25 +10,295 @@ import streamlit as st
 from weather_service import DEFAULT_CSV_PATH, REGION_METADATA, load_weather_csv, save_weather_csv
 
 DATA_PATH = Path(DEFAULT_CSV_PATH)
+PAGE_TITLE = "Taiwan 7-Day Agricultural Forecast"
 
 
 def _temperature_to_color(avg_temp: float) -> str:
     if avg_temp < 20:
-        return "blue"
+        return "#3b82f6"
     if avg_temp <= 25:
-        return "green"
+        return "#10b981"
     if avg_temp <= 30:
-        return "yellow"
-    return "red"
+        return "#f59e0b"
+    return "#ef4444"
 
 
-def _get_default_api_key() -> str:
+def _get_configured_api_key() -> str:
     secret_key = ""
     try:
         secret_key = st.secrets.get("CWA_API_KEY", "")
     except Exception:
         secret_key = ""
     return os.getenv("CWA_API_KEY", secret_key).strip()
+
+
+def _is_api_key_configured() -> bool:
+    return bool(_get_configured_api_key())
+
+
+def _inject_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        html, body, [class*="css"] {
+            font-family: "Noto Sans TC", "Microsoft JhengHei", "Segoe UI", sans-serif;
+        }
+
+        .stApp {
+            background:
+                radial-gradient(circle at top left, rgba(15, 118, 110, 0.14), transparent 24%),
+                radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 20%),
+                linear-gradient(180deg, #f4f8f7 0%, #f8fafc 56%, #ffffff 100%);
+        }
+
+        [data-testid="stAppViewContainer"] > .main {
+            padding-top: 1.25rem;
+        }
+
+        .block-container {
+            max-width: 1280px;
+            padding-top: 1rem;
+            padding-bottom: 3rem;
+        }
+
+        [data-testid="stSidebar"] {
+            background: #f7fbfa;
+        }
+
+        .hero-panel {
+            background: linear-gradient(135deg, rgba(15, 118, 110, 0.98), rgba(15, 76, 129, 0.94));
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 28px;
+            box-shadow: 0 24px 64px rgba(15, 23, 42, 0.14);
+            color: #ffffff;
+            padding: 2rem 2.2rem;
+        }
+
+        .hero-kicker {
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            opacity: 0.8;
+            text-transform: uppercase;
+        }
+
+        .hero-title {
+            font-size: 2.35rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            line-height: 1.05;
+            margin: 0.4rem 0 0.8rem;
+        }
+
+        .hero-subtitle {
+            font-size: 1rem;
+            line-height: 1.7;
+            max-width: 52rem;
+            opacity: 0.94;
+        }
+
+        .hero-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.7rem;
+            margin-top: 1.1rem;
+        }
+
+        .hero-chip {
+            background: rgba(255, 255, 255, 0.14);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 999px;
+            font-size: 0.92rem;
+            padding: 0.48rem 0.78rem;
+        }
+
+        .panel-label {
+            color: #486581;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.45rem;
+            text-transform: uppercase;
+        }
+
+        .note-card {
+            background: linear-gradient(180deg, #f8fafc 0%, #eef7f5 100%);
+            border: 1px solid rgba(15, 118, 110, 0.12);
+            border-radius: 18px;
+            color: #243b53;
+            font-size: 0.95rem;
+            line-height: 1.7;
+            min-height: 124px;
+            padding: 1rem 1.1rem;
+        }
+
+        .summary-card {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            border-radius: 20px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+            min-height: 132px;
+            padding: 1.1rem 1.15rem;
+        }
+
+        .summary-label {
+            color: #627d98;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .summary-value {
+            color: #102a43;
+            font-size: 1.65rem;
+            font-weight: 800;
+            line-height: 1.2;
+            margin-top: 0.45rem;
+        }
+
+        .summary-detail {
+            color: #486581;
+            font-size: 0.94rem;
+            line-height: 1.55;
+            margin-top: 0.35rem;
+        }
+
+        .section-title {
+            color: #102a43;
+            font-size: 1.12rem;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+        }
+
+        .section-copy {
+            color: #627d98;
+            margin-bottom: 0.95rem;
+        }
+
+        .ranking-card {
+            background: rgba(255, 255, 255, 0.86);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            border-radius: 18px;
+            margin-bottom: 0.8rem;
+            padding: 1rem 1.05rem;
+        }
+
+        .ranking-head {
+            align-items: baseline;
+            display: flex;
+            gap: 0.8rem;
+            justify-content: space-between;
+        }
+
+        .ranking-name {
+            color: #102a43;
+            font-size: 1rem;
+            font-weight: 800;
+        }
+
+        .ranking-temp {
+            color: #0f4c81;
+            font-size: 1.05rem;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .ranking-detail {
+            color: #486581;
+            font-size: 0.92rem;
+            margin-top: 0.35rem;
+        }
+
+        .ranking-bar {
+            background: #e6edf5;
+            border-radius: 999px;
+            height: 0.55rem;
+            margin-top: 0.8rem;
+            overflow: hidden;
+        }
+
+        .ranking-bar > span {
+            border-radius: 999px;
+            display: block;
+            height: 100%;
+        }
+
+        .security-callout {
+            color: #334e68;
+            font-size: 0.93rem;
+            line-height: 1.65;
+        }
+
+        .stButton > button {
+            background: linear-gradient(135deg, #0f766e 0%, #0f4c81 100%);
+            border: none;
+            border-radius: 14px;
+            font-weight: 800;
+            height: 3rem;
+            width: 100%;
+        }
+
+        .stButton > button:disabled {
+            background: #bcccdc;
+            color: #52606d;
+        }
+
+        div[data-testid="stSelectbox"] > label {
+            color: #334e68;
+            font-weight: 700;
+        }
+
+        div[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            border-radius: 14px;
+            min-height: 3rem;
+        }
+
+        [data-testid="stDataFrame"] {
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            border-radius: 18px;
+            overflow: hidden;
+        }
+
+        [data-testid="stAlert"] {
+            border-radius: 16px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _format_last_updated() -> str:
+    if not DATA_PATH.exists():
+        return "尚未建立"
+    return pd.Timestamp(DATA_PATH.stat().st_mtime, unit="s").strftime("%Y-%m-%d %H:%M")
+
+
+def _build_hero() -> None:
+    key_state = "已設定" if _is_api_key_configured() else "未設定"
+    data_state = "已載入資料" if DATA_PATH.exists() else "尚無本機 CSV"
+    st.markdown(
+        f"""
+        <section class="hero-panel">
+          <div class="hero-kicker">Agricultural Weather Dashboard</div>
+          <div class="hero-title">{PAGE_TITLE}</div>
+          <div class="hero-subtitle">
+            重新整理版面後，控制項集中在主畫面，地圖、摘要與明細表分區更清楚。
+            CWA API Key 現在只從伺服器端環境變數或 Streamlit Secrets 讀取，不再在頁面上顯示或回填。
+          </div>
+          <div class="hero-meta">
+            <span class="hero-chip">資料集: CWA F-A0010-001</span>
+            <span class="hero-chip">Key 狀態: {key_state}</span>
+            <span class="hero-chip">CSV 狀態: {data_state}</span>
+            <span class="hero-chip">最後更新: {_format_last_updated()}</span>
+          </div>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _draw_temperature_map(filtered_df: pd.DataFrame, selected_date: str) -> folium.Map:
@@ -50,28 +320,31 @@ def _draw_temperature_map(filtered_df: pd.DataFrame, selected_date: str) -> foli
             color=color,
             fill=True,
             fill_color=color,
-            fill_opacity=0.8,
+            fill_opacity=0.82,
             popup=folium.Popup(popup_html, max_width=260),
             tooltip=f"{row['region']} ({row['avg_temp']:.1f} °C)",
+            weight=2,
         ).add_to(weather_map)
 
     legend_html = """
     <div style="
         position: fixed;
-        bottom: 40px;
-        left: 40px;
+        bottom: 36px;
+        left: 36px;
         z-index: 9999;
-        background: white;
-        border: 1px solid #ccc;
-        padding: 10px;
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid #d9e2ec;
+        border-radius: 12px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+        padding: 12px 14px;
         font-size: 13px;
-        line-height: 1.7;
+        line-height: 1.8;
     ">
       <b>平均溫度色階</b><br>
-      <span style="color: blue;">●</span> &lt; 20°C<br>
-      <span style="color: green;">●</span> 20-25°C<br>
-      <span style="color: #d6a600;">●</span> 25-30°C<br>
-      <span style="color: red;">●</span> &gt; 30°C
+      <span style="color: #3b82f6;">●</span> &lt; 20°C<br>
+      <span style="color: #10b981;">●</span> 20-25°C<br>
+      <span style="color: #f59e0b;">●</span> 25-30°C<br>
+      <span style="color: #ef4444;">●</span> &gt; 30°C
     </div>
     """
     weather_map.get_root().html.add_child(folium.Element(legend_html))
@@ -81,7 +354,7 @@ def _draw_temperature_map(filtered_df: pd.DataFrame, selected_date: str) -> foli
 def _format_table(filtered_df: pd.DataFrame) -> pd.DataFrame:
     table_df = filtered_df.copy()
     table_df = table_df[["region", "min_temp", "max_temp", "avg_temp"]]
-    table_df = table_df.rename(
+    return table_df.rename(
         columns={
             "region": "地區",
             "min_temp": "最低溫 (°C)",
@@ -89,7 +362,15 @@ def _format_table(filtered_df: pd.DataFrame) -> pd.DataFrame:
             "avg_temp": "平均溫 (°C)",
         }
     )
-    return table_df
+
+
+def _build_coordinate_table() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {"地區": name, "緯度": meta["lat"], "經度": meta["lon"]}
+            for name, meta in REGION_METADATA.items()
+        ]
+    )
 
 
 def _initialize_state() -> None:
@@ -97,63 +378,224 @@ def _initialize_state() -> None:
         st.session_state["weather_df"] = load_weather_csv(DATA_PATH)
 
 
-def _fetch_latest_data(api_key: str) -> None:
+def _fetch_latest_data() -> None:
+    api_key = _get_configured_api_key()
+    if not api_key:
+        raise ValueError("CWA_API_KEY 尚未設定。請在 .env 或 Streamlit Secrets 中設定後再更新資料。")
     dataframe = save_weather_csv(DATA_PATH, api_key=api_key)
     st.session_state["weather_df"] = dataframe
 
 
+def _render_summary_card(title: str, value: str, detail: str) -> None:
+    st.markdown(
+        f"""
+        <div class="summary-card">
+          <div class="summary-label">{title}</div>
+          <div class="summary-value">{value}</div>
+          <div class="summary-detail">{detail}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_summary_cards(filtered_df: pd.DataFrame, selected_date: str) -> None:
+    warmest_row = filtered_df.loc[filtered_df["avg_temp"].idxmax()]
+    coolest_row = filtered_df.loc[filtered_df["avg_temp"].idxmin()]
+    widest_range = (filtered_df["max_temp"] - filtered_df["min_temp"]).idxmax()
+    widest_range_row = filtered_df.loc[widest_range]
+    regional_mean = filtered_df["avg_temp"].mean()
+
+    cards = st.columns(4, gap="medium")
+    with cards[0]:
+        _render_summary_card(
+            "區域平均",
+            f"{regional_mean:.1f} °C",
+            f"{selected_date} 六大區域的平均溫度概況",
+        )
+    with cards[1]:
+        _render_summary_card(
+            "最暖區域",
+            str(warmest_row["region"]),
+            f"平均溫 {float(warmest_row['avg_temp']):.1f} °C",
+        )
+    with cards[2]:
+        _render_summary_card(
+            "最涼區域",
+            str(coolest_row["region"]),
+            f"平均溫 {float(coolest_row['avg_temp']):.1f} °C",
+        )
+    with cards[3]:
+        _render_summary_card(
+            "最大日溫差",
+            str(widest_range_row["region"]),
+            f"高低溫差 {float(widest_range_row['max_temp'] - widest_range_row['min_temp']):.1f} °C",
+        )
+
+
+def _render_rankings(filtered_df: pd.DataFrame) -> None:
+    st.markdown('<div class="section-title">區域溫度排名</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-copy">依平均溫度排序，快速辨識當日偏熱與偏涼區域。</div>',
+        unsafe_allow_html=True,
+    )
+
+    ranking_df = filtered_df.sort_values("avg_temp", ascending=False).reset_index(drop=True)
+    min_avg_temp = float(ranking_df["avg_temp"].min())
+    max_avg_temp = float(ranking_df["avg_temp"].max())
+    scale_span = max(max_avg_temp - min_avg_temp, 1.0)
+
+    for _, row in ranking_df.iterrows():
+        bar_width = 30 + ((float(row["avg_temp"]) - min_avg_temp) / scale_span) * 70
+        color = _temperature_to_color(float(row["avg_temp"]))
+        st.markdown(
+            f"""
+            <div class="ranking-card">
+              <div class="ranking-head">
+                <div class="ranking-name">{row['region']}</div>
+                <div class="ranking-temp">{row['avg_temp']:.1f} °C</div>
+              </div>
+              <div class="ranking-detail">
+                最低 {row['min_temp']:.1f} °C / 最高 {row['max_temp']:.1f} °C
+              </div>
+              <div class="ranking-bar">
+                <span style="width: {bar_width:.1f}%; background: {color};"></span>
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+def _render_control_panel(available_dates: list[str]) -> str:
+    key_ready = _is_api_key_configured()
+    controls = st.columns([1.6, 0.95, 1.3], gap="medium")
+
+    with controls[0]:
+        st.markdown('<div class="panel-label">Forecast Date</div>', unsafe_allow_html=True)
+        selected_date = st.selectbox(
+            "選擇日期",
+            options=available_dates,
+            index=0,
+            label_visibility="collapsed",
+        )
+        st.caption("切換日期後，地圖、摘要與表格會同步更新。")
+
+    with controls[1]:
+        st.markdown('<div class="panel-label">Data Refresh</div>', unsafe_allow_html=True)
+        refresh_clicked = st.button(
+            "重新抓取 CWA 資料",
+            type="primary",
+            disabled=not key_ready,
+            use_container_width=True,
+        )
+        if refresh_clicked:
+            with st.spinner("正在從 CWA 更新資料..."):
+                _fetch_latest_data()
+            st.success(f"已更新資料並寫入 {DATA_PATH.resolve()}")
+        if not key_ready:
+            st.caption("未設定 CWA_API_KEY，因此已停用重新抓取。")
+        else:
+            st.caption("更新時只使用伺服器端金鑰，不會在前端顯示。")
+
+    with controls[2]:
+        st.markdown(
+            """
+            <div class="note-card">
+              <div class="panel-label">Security</div>
+              <div class="security-callout">
+                畫面不再提供 API Key 輸入框，也不會把已設定的金鑰回填到任何欄位。
+                若要更新資料，請只在 <code>.env</code> 或 Streamlit Secrets 設定 <code>CWA_API_KEY</code>。
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    return selected_date
+
+
 def main() -> None:
-    st.set_page_config(page_title="Taiwan 7-Day Agricultural Forecast", layout="wide")
-    st.title("Taiwan 7-Day Agricultural Forecast (CWA F-A0010-001)")
-    st.caption("地圖使用近似地區座標，並依平均溫度以顏色區分。")
-
+    st.set_page_config(
+        page_title=PAGE_TITLE,
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
+    _inject_styles()
     _initialize_state()
-
-    with st.sidebar:
-        st.header("資料更新")
-        default_key = _get_default_api_key()
-        api_key = st.text_input("CWA API Key", value=default_key, type="password")
-        st.caption("部署到 Streamlit Cloud 可在 Secrets 設定 CWA_API_KEY。")
-
-        if st.button("從 CWA 重新抓取資料", type="primary"):
-            try:
-                _fetch_latest_data(api_key)
-                st.success(f"已更新資料並輸出至 {DATA_PATH.resolve()}")
-            except Exception as exc:
-                st.error(str(exc))
+    _build_hero()
 
     dataframe = st.session_state.get("weather_df", pd.DataFrame())
+
     if dataframe.empty:
-        st.warning("目前沒有可顯示資料。請在左側輸入 CWA API Key 後更新資料。")
-        st.info(
-            "若遇到 SSL 憑證問題，系統會自動回退至 verify=False 重新請求。"
-        )
+        if _is_api_key_configured():
+            st.info("目前尚未載入資料。請點擊「重新抓取 CWA 資料」建立最新 CSV。")
+        else:
+            st.warning("目前沒有可顯示資料，且尚未設定 CWA_API_KEY。")
+            st.info("請在 `.env` 或 Streamlit Secrets 設定 `CWA_API_KEY` 後再重新抓取資料。")
         st.stop()
 
+    if not _is_api_key_configured():
+        st.info("未偵測到伺服器端 CWA_API_KEY。目前仍可瀏覽既有 CSV，但重新抓取功能會維持停用。")
+
     available_dates = sorted(dataframe["date"].astype(str).unique().tolist())
-    selected_date = st.selectbox("選擇日期", options=available_dates, index=0)
+    selected_date = _render_control_panel(available_dates)
     filtered_df = dataframe[dataframe["date"].astype(str) == selected_date].copy()
 
-    left_col, right_col = st.columns([3, 2], gap="large")
+    if filtered_df.empty:
+        st.warning("找不到該日期的資料，請改選其他日期。")
+        st.stop()
 
-    with left_col:
-        st.subheader(f"地圖檢視 - {selected_date}")
-        weather_map = _draw_temperature_map(filtered_df, selected_date)
-        st.components.v1.html(weather_map.get_root().render(), height=620, scrolling=False)
+    _render_summary_cards(filtered_df, selected_date)
 
-    with right_col:
-        st.subheader(f"溫度資料表 - {selected_date}")
-        table_df = _format_table(filtered_df)
-        st.dataframe(table_df, use_container_width=True, hide_index=True)
+    map_col, insight_col = st.columns([2.05, 1], gap="large")
 
-        st.markdown("**地區座標 (近似值)**")
-        coordinate_df = pd.DataFrame(
-            [
-                {"地區": name, "緯度": meta["lat"], "經度": meta["lon"]}
-                for name, meta in REGION_METADATA.items()
-            ]
+    with map_col:
+        st.markdown('<div class="section-title">地圖總覽</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="section-copy">圓點顏色依平均溫度分級，點擊標記可查看當日高低溫。</div>',
+            unsafe_allow_html=True,
         )
-        st.dataframe(coordinate_df, use_container_width=True, hide_index=True)
+        weather_map = _draw_temperature_map(filtered_df, selected_date)
+        st.components.v1.html(weather_map.get_root().render(), height=640, scrolling=False)
+
+    with insight_col:
+        _render_rankings(filtered_df)
+
+    detail_col, coord_col = st.columns([1.8, 1], gap="large")
+
+    with detail_col:
+        st.markdown('<div class="section-title">溫度明細表</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="section-copy">表格保留當日各區域最低、最高與平均溫度，方便進一步匯出或比對。</div>',
+            unsafe_allow_html=True,
+        )
+        st.dataframe(
+            _format_table(filtered_df),
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "最低溫 (°C)": st.column_config.NumberColumn(format="%.1f"),
+                "最高溫 (°C)": st.column_config.NumberColumn(format="%.1f"),
+                "平均溫 (°C)": st.column_config.NumberColumn(format="%.1f"),
+            },
+        )
+
+    with coord_col:
+        st.markdown('<div class="section-title">地區座標參考</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="section-copy">Folium 地圖使用近似座標，足夠呈現六大區域的空間分布。</div>',
+            unsafe_allow_html=True,
+        )
+        st.dataframe(
+            _build_coordinate_table(),
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "緯度": st.column_config.NumberColumn(format="%.2f"),
+                "經度": st.column_config.NumberColumn(format="%.2f"),
+            },
+        )
 
 
 if __name__ == "__main__":

@@ -39,10 +39,11 @@ uv run streamlit run app.py
 ```
 
 功能包含：
-- 左右版面配置（左地圖 / 右資料表）
+- 重整後的儀表板版面（主畫面控制列、摘要卡片、地圖與明細分區）
 - 日期下拉選單動態篩選
 - Folium 圓形標記 + popup 區域明細
 - 平均溫色階：藍 `<20°C`、綠 `20-25°C`、黃 `25-30°C`、紅 `>30°C`
+- API Key 只從 `.env` 或 Streamlit Secrets 讀取，不會顯示在前端頁面
 - 若遇 SSL 驗證問題會自動 fallback 到 `verify=False` 重試
 - `F-A0010-001` 若 `rest/datastore` 回傳 404，程式會自動 fallback 到 `fileapi/v1/opendataapi`
 
@@ -52,6 +53,7 @@ uv run streamlit run app.py
 - 入口檔：`app.py`
 - 依賴：`requirements.txt`
 - Secrets 設定：`CWA_API_KEY`
+- 前端不提供 API Key 輸入欄位，更新資料時會直接使用伺服器端 Secrets
 
 ### Vercel（前後端）
 - 前端：`index.html`（靜態頁，含地圖 + 日期篩選 + 表格）
