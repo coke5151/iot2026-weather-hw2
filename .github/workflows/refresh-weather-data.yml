@@ -27,11 +27,23 @@ jobs:
       - name: Refresh shared weather cache
         run: python fetch_weather_data.py
 
+      - name: Check cache diff
+        id: cache_diff
+        run: |
+          git add weather_data.csv
+          if git diff --cached --quiet -- weather_data.csv; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No changes detected in weather_data.csv"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Detected updates in weather_data.csv"
+            git diff --cached --stat -- weather_data.csv
+          fi
+
       - name: Commit updated cache
+        if: steps.cache_diff.outputs.changed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add weather_data.csv
-          git diff --cached --quiet && exit 0
           git commit -m "chore: refresh weather cache"
           git push
