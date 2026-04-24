@@ -2,22 +2,23 @@
 
 > 中央氣象署農業天氣資料爬取與 Streamlit 視覺化展示專案
 
-這個專案會定期抓取中央氣象署 CWA `F-A0010-001` 相關天氣資料，整理六大區域的最低溫、最高溫與平均溫度，輸出成 `weather_data.csv`，再透過 Streamlit 顯示互動式地圖與資料表。
+這個專案會定期抓取中央氣象署 CWA `F-A0010-001` 相關天氣資料，整理六大區域的最低溫、最高溫與平均溫度，同步輸出成 `weather_data.csv` 與 `weather_data.db`，再透過 Streamlit 顯示作業要求的地區下拉選單、一週折線圖與資料表。
 
 目前正式部署方式為：
 
 - 前端與展示介面：Streamlit
-- 定期更新資料：GitHub Actions 排程自動爬取與提交最新 `weather_data.csv`
+- 定期更新資料：GitHub Actions 排程自動爬取並同步提交最新 `weather_data.csv` / `weather_data.db`
 - 線上網址：[https://iot2026-weather-hw2-pytree.streamlit.app](https://iot2026-weather-hw2-pytree.streamlit.app)
 
 ## 專案內容
 
 ![專案小地圖 Demo](./image/project-mapview-demo.png)
 
-- `fetch_weather_data.py`：向 CWA 取得資料並整理成共享快取 `weather_data.csv`
-- `app.py`：Streamlit 主程式，負責地圖、卡片與表格顯示
-- `weather_service.py`：資料讀取與處理邏輯
-- `weather_data.csv`：目前展示使用的共享資料快取
+- `fetch_weather_data.py`：向 CWA 取得資料並整理成共享快取 `weather_data.csv` 與 `weather_data.db`
+- `app.py`：Streamlit 主程式，負責地區下拉、一週折線圖與資料表顯示
+- `weather_service.py`：資料抓取、SQLite 寫入與查詢邏輯
+- `weather_data.csv`：保留的 CSV 快取，方便人工檢查或相容用途
+- `weather_data.db`：前端正式查詢使用的 SQLite 資料庫
 - `.github/workflows/refresh-weather-data.yml`：GitHub Actions 排程更新流程
 - `chats/`：本專案開發與調整過程中的聊天紀錄
 
@@ -61,7 +62,7 @@ CWA_API_KEY=你的中央氣象署 API Key
 python fetch_weather_data.py
 ```
 
-執行後會更新或產生 `weather_data.csv`。
+執行後會同步更新或產生 `weather_data.csv` 與 `weather_data.db`。
 
 ### 4. 啟動 Streamlit
 
@@ -85,8 +86,8 @@ streamlit run app.py
 
 1. GitHub Actions 依照排程執行 `fetch_weather_data.py`
 2. 工作流程使用 repository secret `CWA_API_KEY` 取得最新資料
-3. 若 `weather_data.csv` 有變化，就自動 commit 回 repository
-4. Streamlit 部署端讀取 repo 內最新資料並提供展示
+3. 若 `weather_data.csv` 或 `weather_data.db` 有變化，就自動 commit 回 repository
+4. Streamlit 部署端讀取 repo 內最新 SQLite 資料並提供展示
 
 目前排程設定在 [`.github/workflows/refresh-weather-data.yml`](.github/workflows/refresh-weather-data.yml)，每 6 小時自動更新一次，也可以手動執行 `workflow_dispatch`。
 

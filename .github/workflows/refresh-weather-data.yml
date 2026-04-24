@@ -30,14 +30,14 @@ jobs:
       - name: Check cache diff
         id: cache_diff
         run: |
-          git add weather_data.csv
-          if git diff --cached --quiet -- weather_data.csv; then
+          git add weather_data.csv weather_data.db
+          if git diff --cached --quiet -- weather_data.csv weather_data.db; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "No changes detected in weather_data.csv"
+            echo "No changes detected in weather_data.csv / weather_data.db"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "Detected updates in weather_data.csv"
-            git diff --cached --stat -- weather_data.csv
+            echo "Detected updates in weather_data.csv / weather_data.db"
+            git diff --cached --stat -- weather_data.csv weather_data.db
           fi
 
       - name: Commit updated cache

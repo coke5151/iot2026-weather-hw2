@@ -2,24 +2,18 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import folium
 import pandas as pd
 import streamlit as st
 
-from weather_service import DEFAULT_CSV_PATH, REGION_METADATA, load_weather_csv
+from weather_service import (
+    DEFAULT_DB_PATH,
+    REGION_METADATA,
+    get_available_regions,
+    load_region_forecast,
+)
 
-DATA_PATH = Path(DEFAULT_CSV_PATH)
+DATA_PATH = Path(DEFAULT_DB_PATH)
 PAGE_TITLE = "Taiwan 7-Day Agricultural Forecast"
-
-
-def _temperature_to_color(avg_temp: float) -> str:
-    if avg_temp < 20:
-        return "#3b82f6"
-    if avg_temp <= 25:
-        return "#10b981"
-    if avg_temp <= 30:
-        return "#f59e0b"
-    return "#ef4444"
 
 
 def _inject_styles() -> None:
@@ -44,14 +38,6 @@ def _inject_styles() -> None:
         .block-container {
             max-width: 1320px;
             padding: 1.1rem 1.4rem 4rem;
-        }
-
-        [data-testid="stSidebar"] {
-            background: #f7fbfa;
-        }
-
-        div[data-testid="stHorizontalBlock"] {
-            align-items: stretch;
         }
 
         .hero-panel {
@@ -165,61 +151,29 @@ def _inject_styles() -> None:
             color: #627d98;
             line-height: 1.6;
             margin-bottom: 1.05rem;
-            max-width: 42rem;
+            max-width: 46rem;
         }
 
-        .ranking-card {
-            background: rgba(255, 255, 255, 0.86);
+        .insight-card {
+            background: rgba(255, 255, 255, 0.88);
             border: 1px solid rgba(15, 23, 42, 0.08);
             border-radius: 18px;
-            margin-bottom: 0.9rem;
-            padding: 1.05rem 1.1rem;
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.04);
+            padding: 1.1rem 1.15rem;
         }
 
-        .ranking-head {
-            align-items: baseline;
-            display: flex;
-            gap: 0.8rem;
-            justify-content: space-between;
-        }
-
-        .ranking-name {
+        .insight-title {
             color: #102a43;
             font-size: 1rem;
             font-weight: 800;
+            margin-bottom: 0.8rem;
         }
 
-        .ranking-temp {
-            color: #0f4c81;
-            font-size: 1.05rem;
-            font-weight: 800;
-            white-space: nowrap;
-        }
-
-        .ranking-detail {
-            color: #486581;
-            font-size: 0.92rem;
-            margin-top: 0.35rem;
-        }
-
-        .ranking-bar {
-            background: #e6edf5;
-            border-radius: 999px;
-            height: 0.55rem;
-            margin-top: 0.8rem;
-            overflow: hidden;
-        }
-
-        .ranking-bar > span {
-            border-radius: 999px;
-            display: block;
-            height: 100%;
-        }
-
-        .security-callout {
+        .insight-item {
             color: #334e68;
-            font-size: 0.93rem;
-            line-height: 1.65;
+            font-size: 0.95rem;
+            line-height: 1.75;
+            margin-bottom: 0.35rem;
         }
 
         .layout-gap {
@@ -228,20 +182,6 @@ def _inject_styles() -> None:
 
         .layout-gap.tight {
             height: 0.85rem;
-        }
-
-        .stButton > button {
-            background: linear-gradient(135deg, #0f766e 0%, #0f4c81 100%);
-            border: none;
-            border-radius: 14px;
-            font-weight: 800;
-            height: 3rem;
-            width: 100%;
-        }
-
-        .stButton > button:disabled {
-            background: #bcccdc;
-            color: #52606d;
         }
 
         div[data-testid="stSelectbox"] > label {
@@ -256,7 +196,7 @@ def _inject_styles() -> None:
             min-height: 3rem;
         }
 
-        [data-testid="stDataFrame"] {
+        [data-testid="stDataFrame"], [data-testid="stVegaLiteChart"] {
             background: rgba(255, 255, 255, 0.92);
             border: 1px solid rgba(15, 23, 42, 0.08);
             border-radius: 18px;
@@ -266,26 +206,6 @@ def _inject_styles() -> None:
 
         [data-testid="stAlert"] {
             border-radius: 16px;
-        }
-
-        [data-baseweb="tab-list"] {
-            gap: 0.55rem;
-            margin-bottom: 1rem;
-        }
-
-        button[data-baseweb="tab"] {
-            background: rgba(255, 255, 255, 0.82);
-            border: 1px solid rgba(15, 23, 42, 0.08);
-            border-radius: 999px;
-            color: #486581;
-            font-weight: 700;
-            padding: 0.35rem 0.95rem;
-        }
-
-        button[data-baseweb="tab"][aria-selected="true"] {
-            background: linear-gradient(135deg, rgba(15, 118, 110, 0.14), rgba(15, 76, 129, 0.14));
-            border-color: rgba(15, 118, 110, 0.24);
-            color: #0f4c81;
         }
         </style>
         """,
@@ -300,17 +220,21 @@ def _format_last_updated() -> str:
 
 
 def _build_hero() -> None:
-    data_state = "已載入資料" if DATA_PATH.exists() else "尚無本機 CSV"
+    data_state = "已載入資料庫" if DATA_PATH.exists() else "尚無本機 SQLite"
     st.markdown(
         f"""
         <section class="hero-panel">
           <div class="hero-kicker">Agricultural Weather Dashboard</div>
           <div class="hero-title">{PAGE_TITLE}</div>
+          <div class="hero-subtitle">
+            依作業需求提供六大區域下拉選單、一週氣溫折線圖與明細表，
+            前端資料統一由 SQLite 查詢，不直接讀取 CSV。
+          </div>
           <div class="hero-meta">
             <span class="hero-chip">資料集: CWA F-A0010-001</span>
-            <span class="hero-chip">CSV 狀態: {data_state}</span>
+            <span class="hero-chip">SQLite 狀態: {data_state}</span>
             <span class="hero-chip">最後更新: {_format_last_updated()}</span>
-            <span class="hero-chip">更新模式: 後端排程寫入快取</span>
+            <span class="hero-chip">更新模式: 後端排程同步更新 CSV + SQLite</span>
           </div>
         </section>
         """,
@@ -318,128 +242,35 @@ def _build_hero() -> None:
     )
 
 
-def _draw_temperature_map(filtered_df: pd.DataFrame, selected_date: str) -> folium.Map:
-    weather_map = folium.Map(location=[23.7, 121.0], zoom_start=7, tiles="CartoDB positron")
+def _format_short_date(date_text: str) -> str:
+    return pd.Timestamp(date_text).strftime("%m/%d")
 
-    for _, row in filtered_df.iterrows():
-        color = _temperature_to_color(float(row["avg_temp"]))
-        popup_html = (
-            f"<b>{row['region']}</b><br>"
-            f"日期: {selected_date}<br>"
-            f"最低溫: {row['min_temp']:.1f} °C<br>"
-            f"最高溫: {row['max_temp']:.1f} °C<br>"
-            f"平均溫: {row['avg_temp']:.1f} °C"
+
+def _render_control_panel(available_regions: list[str]) -> str:
+    controls = st.columns([1.2, 1], gap="large")
+
+    with controls[0]:
+        st.markdown('<div class="panel-label">Region Selector</div>', unsafe_allow_html=True)
+        selected_region = st.selectbox(
+            "選擇地區",
+            options=available_regions,
+            index=0,
+            label_visibility="collapsed",
+        )
+        st.caption("切換地區後，折線圖、摘要卡與一週資料表會同步更新。")
+
+    with controls[1]:
+        st.markdown(
+            """
+            <div class="note-card">
+              <div class="panel-label">資料來源</div>
+              本頁面只查詢本機 SQLite 快取，不會在前端直接呼叫 CWA API。
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-        folium.CircleMarker(
-            location=[float(row["lat"]), float(row["lon"])],
-            radius=10,
-            color=color,
-            fill=True,
-            fill_color=color,
-            fill_opacity=0.82,
-            popup=folium.Popup(popup_html, max_width=260),
-            tooltip=f"{row['region']} ({row['avg_temp']:.1f} °C)",
-            weight=2,
-        ).add_to(weather_map)
-
-    legend_html = """
-    <div style="
-        position: fixed;
-        bottom: 36px;
-        left: 36px;
-        z-index: 9999;
-        background: rgba(255, 255, 255, 0.96);
-        border: 1px solid #d9e2ec;
-        border-radius: 12px;
-        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
-        padding: 12px 14px;
-        font-size: 13px;
-        line-height: 1.8;
-    ">
-      <b>平均溫度色階</b><br>
-      <span style="color: #3b82f6;">●</span> &lt; 20°C<br>
-      <span style="color: #10b981;">●</span> 20-25°C<br>
-      <span style="color: #f59e0b;">●</span> 25-30°C<br>
-      <span style="color: #ef4444;">●</span> &gt; 30°C
-    </div>
-    """
-    weather_map.get_root().html.add_child(folium.Element(legend_html))
-    return weather_map
-
-
-def _render_temperature_map_html(filtered_df: pd.DataFrame, selected_date: str) -> str:
-    default_center = [23.7, 121.0]
-    default_zoom = 7
-    weather_map = _draw_temperature_map(filtered_df, selected_date)
-    map_html = weather_map.get_root().render()
-    map_name = weather_map.get_name()
-    reset_view_control = f"""
-    <script>
-      (function() {{
-        const map = {map_name};
-        const defaultCenter = [{default_center[0]}, {default_center[1]}];
-        const defaultZoom = {default_zoom};
-        const resetControl = L.control({{ position: "topleft" }});
-
-        resetControl.onAdd = function() {{
-          const container = L.DomUtil.create("div", "leaflet-bar leaflet-control");
-          const button = L.DomUtil.create("a", "", container);
-          button.href = "#";
-          button.title = "重置地圖位置";
-          button.setAttribute("aria-label", "重置地圖位置");
-          button.innerHTML = "重置";
-          button.style.width = "auto";
-          button.style.minWidth = "58px";
-          button.style.padding = "0 10px";
-          button.style.background = "#ffffff";
-          button.style.color = "#102a43";
-          button.style.fontSize = "13px";
-          button.style.fontWeight = "700";
-
-          L.DomEvent.disableClickPropagation(container);
-          L.DomEvent.on(button, "click", function(event) {{
-            L.DomEvent.stop(event);
-            map.setView(defaultCenter, defaultZoom);
-          }});
-
-          return container;
-        }};
-
-        resetControl.addTo(map);
-      }})();
-    </script>
-    """
-    if "</html>" in map_html:
-        return map_html.replace("</html>", f"{reset_view_control}\n</html>", 1)
-    return map_html + reset_view_control
-
-
-def _format_table(filtered_df: pd.DataFrame) -> pd.DataFrame:
-    table_df = filtered_df.copy()
-    table_df = table_df[["region", "min_temp", "max_temp", "avg_temp"]]
-    return table_df.rename(
-        columns={
-            "region": "地區",
-            "min_temp": "最低溫 (°C)",
-            "max_temp": "最高溫 (°C)",
-            "avg_temp": "平均溫 (°C)",
-        }
-    )
-
-
-def _build_coordinate_table() -> pd.DataFrame:
-    return pd.DataFrame(
-        [
-            {"地區": name, "緯度": meta["lat"], "經度": meta["lon"]}
-            for name, meta in REGION_METADATA.items()
-        ]
-    )
-
-
-def _initialize_state() -> None:
-    if "weather_df" not in st.session_state:
-        st.session_state["weather_df"] = load_weather_csv(DATA_PATH)
+    return selected_region
 
 
 def _render_summary_card(title: str, value: str, detail: str) -> None:
@@ -455,32 +286,32 @@ def _render_summary_card(title: str, value: str, detail: str) -> None:
     )
 
 
-def _render_summary_cards(filtered_df: pd.DataFrame, selected_date: str) -> None:
-    warmest_row = filtered_df.loc[filtered_df["avg_temp"].idxmax()]
-    coolest_row = filtered_df.loc[filtered_df["avg_temp"].idxmin()]
-    widest_range = (filtered_df["max_temp"] - filtered_df["min_temp"]).idxmax()
-    widest_range_row = filtered_df.loc[widest_range]
-    regional_mean = filtered_df["avg_temp"].mean()
+def _render_summary_cards(forecast_df: pd.DataFrame) -> None:
+    warmest_row = forecast_df.loc[forecast_df["avg_temp"].idxmax()]
+    coolest_row = forecast_df.loc[forecast_df["avg_temp"].idxmin()]
+    widest_range_index = (forecast_df["max_temp"] - forecast_df["min_temp"]).idxmax()
+    widest_range_row = forecast_df.loc[widest_range_index]
+    weekly_mean = forecast_df["avg_temp"].mean()
 
     card_specs = [
         (
-            "區域平均",
-            f"{regional_mean:.1f} °C",
-            f"{selected_date} 六大區域的平均溫度概況",
+            "一週平均",
+            f"{weekly_mean:.1f} °C",
+            "依七日平均溫度整體觀察氣溫走勢。",
         ),
         (
-            "最暖區域",
-            str(warmest_row["region"]),
+            "最暖日",
+            _format_short_date(str(warmest_row["date"])),
             f"平均溫 {float(warmest_row['avg_temp']):.1f} °C",
         ),
         (
-            "最涼區域",
-            str(coolest_row["region"]),
+            "最涼日",
+            _format_short_date(str(coolest_row["date"])),
             f"平均溫 {float(coolest_row['avg_temp']):.1f} °C",
         ),
         (
             "最大日溫差",
-            str(widest_range_row["region"]),
+            _format_short_date(str(widest_range_row["date"])),
             f"高低溫差 {float(widest_range_row['max_temp'] - widest_range_row['min_temp']):.1f} °C",
         ),
     ]
@@ -494,67 +325,78 @@ def _render_summary_cards(filtered_df: pd.DataFrame, selected_date: str) -> None
             st.markdown('<div class="layout-gap tight"></div>', unsafe_allow_html=True)
 
 
-def _render_rankings(filtered_df: pd.DataFrame) -> None:
-    st.markdown('<div class="section-title">區域溫度排名</div>', unsafe_allow_html=True)
+def _build_chart_data(forecast_df: pd.DataFrame) -> pd.DataFrame:
+    chart_df = forecast_df.copy()
+    chart_df["日期"] = chart_df["date"].map(_format_short_date)
+    return chart_df.rename(
+        columns={
+            "min_temp": "最低溫 (°C)",
+            "avg_temp": "平均溫 (°C)",
+            "max_temp": "最高溫 (°C)",
+        }
+    )[["日期", "最低溫 (°C)", "平均溫 (°C)", "最高溫 (°C)"]]
+
+
+def _render_weekly_chart(forecast_df: pd.DataFrame) -> None:
+    st.markdown('<div class="section-title">一週氣溫折線圖</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="section-copy">依平均溫度排序，快速辨識當日偏熱與偏涼區域。</div>',
+        '<div class="section-copy">同時比較最低溫、平均溫與最高溫，對照七天內的升降變化。</div>',
+        unsafe_allow_html=True,
+    )
+    st.line_chart(
+        _build_chart_data(forecast_df),
+        x="日期",
+        y=["最低溫 (°C)", "平均溫 (°C)", "最高溫 (°C)"],
+        height=380,
+        use_container_width=True,
+    )
+
+
+def _render_region_insights(selected_region: str, forecast_df: pd.DataFrame) -> None:
+    metadata = REGION_METADATA[selected_region]
+    start_date = _format_short_date(str(forecast_df["date"].min()))
+    end_date = _format_short_date(str(forecast_df["date"].max()))
+    weekly_low = forecast_df["min_temp"].min()
+    weekly_high = forecast_df["max_temp"].max()
+    steady_days = int((forecast_df["avg_temp"].diff().abs().fillna(0) <= 1.0).sum())
+
+    st.markdown('<div class="section-title">區域重點</div>', unsafe_allow_html=True)
+    st.markdown(
+        f"""
+        <div class="insight-card">
+          <div class="insight-title">{selected_region}</div>
+          <div class="insight-item">預報期間: {start_date} - {end_date}</div>
+          <div class="insight-item">近似中心座標: {metadata['lat']:.2f}, {metadata['lon']:.2f}</div>
+          <div class="insight-item">一週最低溫: {weekly_low:.1f} °C</div>
+          <div class="insight-item">一週最高溫: {weekly_high:.1f} °C</div>
+          <div class="insight-item">溫度相對平穩天數: {steady_days} 天</div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
 
-    ranking_df = filtered_df.sort_values("avg_temp", ascending=False).reset_index(drop=True)
-    min_avg_temp = float(ranking_df["avg_temp"].min())
-    max_avg_temp = float(ranking_df["avg_temp"].max())
-    scale_span = max(max_avg_temp - min_avg_temp, 1.0)
 
-    for _, row in ranking_df.iterrows():
-        bar_width = 30 + ((float(row["avg_temp"]) - min_avg_temp) / scale_span) * 70
-        color = _temperature_to_color(float(row["avg_temp"]))
-        st.markdown(
-            f"""
-            <div class="ranking-card">
-              <div class="ranking-head">
-                <div class="ranking-name">{row['region']}</div>
-                <div class="ranking-temp">{row['avg_temp']:.1f} °C</div>
-              </div>
-              <div class="ranking-detail">
-                最低 {row['min_temp']:.1f} °C / 最高 {row['max_temp']:.1f} °C
-              </div>
-              <div class="ranking-bar">
-                <span style="width: {bar_width:.1f}%; background: {color};"></span>
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+def _format_table(forecast_df: pd.DataFrame) -> pd.DataFrame:
+    table_df = forecast_df.copy()
+    table_df["date"] = table_df["date"].map(_format_short_date)
+    return table_df.rename(
+        columns={
+            "date": "日期",
+            "region": "地區",
+            "min_temp": "最低溫 (°C)",
+            "max_temp": "最高溫 (°C)",
+            "avg_temp": "平均溫 (°C)",
+        }
+    )[["日期", "地區", "最低溫 (°C)", "最高溫 (°C)", "平均溫 (°C)"]]
 
 
-def _render_control_panel(available_dates: list[str]) -> str:
-    controls = st.columns([1.2, 1], gap="large")
-
-    with controls[0]:
-        st.markdown('<div class="panel-label">Forecast Date</div>', unsafe_allow_html=True)
-        selected_date = st.selectbox(
-            "選擇日期",
-            options=available_dates,
-            index=0,
-            label_visibility="collapsed",
-        )
-        st.caption("切換日期後，地圖、摘要與表格會同步更新。")
-
-    with controls[1]:
-        st.markdown(
-            """
-            <div class="note-card">
-              <div class="panel-label">資料更新</div>
-              <div class="security-callout">
-                資料每 6 小時會由 Github Action 自動刷新。
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    return selected_date
+def _build_coordinate_table() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {"地區": name, "緯度": meta["lat"], "經度": meta["lon"]}
+            for name, meta in REGION_METADATA.items()
+        ]
+    )
 
 
 def main() -> None:
@@ -564,51 +406,41 @@ def main() -> None:
         initial_sidebar_state="collapsed",
     )
     _inject_styles()
-    _initialize_state()
     _build_hero()
 
-    dataframe = st.session_state.get("weather_df", pd.DataFrame())
-
-    if dataframe.empty:
-        st.warning("目前沒有可顯示資料。請先由後端排程執行 `fetch_weather_data.py` 產生 `weather_data.csv`。")
-        st.info("前端現在只讀取快取檔案，不會自行呼叫 CWA API。")
+    available_regions = get_available_regions(DATA_PATH)
+    if not available_regions:
+        st.warning("目前沒有可顯示資料。請先由後端執行 `fetch_weather_data.py` 產生 `weather_data.db`。")
+        st.info("前端現在只讀取 SQLite 快取，不會自行呼叫 CWA API。")
         st.stop()
 
-    available_dates = sorted(dataframe["date"].astype(str).unique().tolist())
-    selected_date = _render_control_panel(available_dates)
-    filtered_df = dataframe[dataframe["date"].astype(str) == selected_date].copy()
+    selected_region = _render_control_panel(available_regions)
+    forecast_df = load_region_forecast(selected_region, DATA_PATH)
 
-    if filtered_df.empty:
-        st.warning("找不到該日期的資料，請改選其他日期。")
+    if forecast_df.empty:
+        st.warning("找不到該地區的預報資料，請改選其他地區。")
         st.stop()
 
     st.markdown('<div class="layout-gap"></div>', unsafe_allow_html=True)
-    _render_summary_cards(filtered_df, selected_date)
+    _render_summary_cards(forecast_df)
     st.markdown('<div class="layout-gap"></div>', unsafe_allow_html=True)
 
-    map_col, insight_col = st.columns([1.75, 1], gap="large")
-
-    with map_col:
-        st.markdown('<div class="section-title">地圖總覽</div>', unsafe_allow_html=True)
-        st.markdown(
-            '<div class="section-copy">圓點顏色依平均溫度分級，點擊標記可查看當日高低溫。</div>',
-            unsafe_allow_html=True,
-        )
-        st.components.v1.html(_render_temperature_map_html(filtered_df, selected_date), height=620, scrolling=False)
-
+    chart_col, insight_col = st.columns([1.75, 1], gap="large")
+    with chart_col:
+        _render_weekly_chart(forecast_df)
     with insight_col:
-        _render_rankings(filtered_df)
+        _render_region_insights(selected_region, forecast_df)
 
     st.markdown('<div class="layout-gap"></div>', unsafe_allow_html=True)
-    detail_tab, coord_tab = st.tabs(["溫度明細表", "地區座標參考"])
+    detail_tab, coord_tab = st.tabs(["一週預報表", "地區座標參考"])
 
     with detail_tab:
         st.markdown(
-            '<div class="section-copy">保留各區域最低、最高與平均溫度，方便快速比對。</div>',
+            '<div class="section-copy">列出所選地區未來七天的最低溫、最高溫與平均溫。</div>',
             unsafe_allow_html=True,
         )
         st.dataframe(
-            _format_table(filtered_df),
+            _format_table(forecast_df),
             use_container_width=True,
             hide_index=True,
             column_config={
@@ -620,7 +452,7 @@ def main() -> None:
 
     with coord_tab:
         st.markdown(
-            '<div class="section-copy">六大區域的近似中心座標，方便對照地圖標記位置。</div>',
+            '<div class="section-copy">六大區域的近似中心座標，可對照地區範圍與資料來源設定。</div>',
             unsafe_allow_html=True,
         )
         st.dataframe(

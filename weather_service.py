@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,9 @@ CWA_DATASET_ID = "F-A0010-001"
 CWA_REST_ENDPOINT = f"https://opendata.cwa.gov.tw/api/v1/rest/datastore/{CWA_DATASET_ID}"
 CWA_FILEAPI_ENDPOINT = f"https://opendata.cwa.gov.tw/fileapi/v1/opendataapi/{CWA_DATASET_ID}"
 DEFAULT_CSV_PATH = Path("weather_data.csv")
+DEFAULT_DB_PATH = Path("weather_data.db")
+WEATHER_TABLE_NAME = "weather_forecast"
+WEATHER_COLUMNS = ["region", "date", "min_temp", "max_temp", "avg_temp", "lat", "lon"]
 
 load_dotenv()
 
@@ -372,6 +376,73 @@ def _build_rows_from_rest(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
+def _sort_weather_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
+    if dataframe.empty:
+        return dataframe
+
+    sorted_df = dataframe.copy()
+    if "date" in sorted_df.columns:
+        sorted_df["date"] = sorted_df["date"].astype(str)
+
+    region_order = list(REGION_METADATA.keys())
+    if "region" in sorted_df.columns:
+        sorted_df["region"] = pd.Categorical(
+            sorted_df["region"], categories=region_order, ordered=True
+        )
+
+    sort_columns = [column for column in ("date", "region") if column in sorted_df.columns]
+    if sort_columns:
+        sorted_df = sorted_df.sort_values(sort_columns).reset_index(drop=True)
+
+    if "region" in sorted_df.columns:
+        sorted_df["region"] = sorted_df["region"].astype(str)
+    return sorted_df
+
+
+def _normalize_dataframe_for_storage(dataframe: pd.DataFrame) -> pd.DataFrame:
+    normalized = dataframe.copy()
+    for column in WEATHER_COLUMNS:
+        if column not in normalized.columns:
+            normalized[column] = None
+
+    normalized = normalized[WEATHER_COLUMNS].copy()
+    numeric_columns = ["min_temp", "max_temp", "avg_temp", "lat", "lon"]
+    for column in numeric_columns:
+        normalized[column] = pd.to_numeric(normalized[column], errors="coerce")
+
+    normalized["region"] = normalized["region"].astype(str)
+    normalized["date"] = normalized["date"].astype(str)
+    return _sort_weather_dataframe(normalized)
+
+
+def _ensure_output_directory(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+
+def _connect_sqlite(db_path: str | Path = DEFAULT_DB_PATH) -> sqlite3.Connection:
+    db_file = Path(db_path)
+    _ensure_output_directory(db_file)
+    return sqlite3.connect(db_file)
+
+
+def initialize_weather_database(db_path: str | Path = DEFAULT_DB_PATH) -> None:
+    with _connect_sqlite(db_path) as connection:
+        connection.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS {WEATHER_TABLE_NAME} (
+                region TEXT NOT NULL,
+                date TEXT NOT NULL,
+                min_temp REAL NOT NULL,
+                max_temp REAL NOT NULL,
+                avg_temp REAL NOT NULL,
+                lat REAL NOT NULL,
+                lon REAL NOT NULL,
+                PRIMARY KEY (region, date)
+            )
+            """
+        )
+
+
 def _build_weather_dataframe(payload: dict[str, Any]) -> pd.DataFrame:
     if "cwaopendata" in payload:
         rows = _build_rows_from_fileapi(payload)
@@ -395,13 +466,7 @@ def _build_weather_dataframe(payload: dict[str, Any]) -> pd.DataFrame:
     dataframe["avg_temp"] = (dataframe["min_temp"] + dataframe["max_temp"]) / 2
     dataframe["lat"] = dataframe["region"].map(lambda region: REGION_METADATA[region]["lat"])
     dataframe["lon"] = dataframe["region"].map(lambda region: REGION_METADATA[region]["lon"])
-
-    region_order = list(REGION_METADATA.keys())
-    dataframe["region"] = pd.Categorical(dataframe["region"], categories=region_order, ordered=True)
-    dataframe = dataframe.sort_values(["date", "region"]).reset_index(drop=True)
-    dataframe["region"] = dataframe["region"].astype(str)
-
-    return dataframe
+    return _sort_weather_dataframe(dataframe)
 
 
 def fetch_weather_dataframe(api_key: str | None = None) -> pd.DataFrame:
@@ -419,29 +484,116 @@ def fetch_weather_dataframe(api_key: str | None = None) -> pd.DataFrame:
 
 
 def save_weather_csv(
-    output_path: str | Path = DEFAULT_CSV_PATH, api_key: str | None = None
+    output_path: str | Path = DEFAULT_CSV_PATH,
+    api_key: str | None = None,
+    dataframe: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     output = Path(output_path)
-    dataframe = fetch_weather_dataframe(api_key=api_key)
-    dataframe.to_csv(output, index=False, encoding="utf-8-sig")
-    return dataframe
+    _ensure_output_directory(output)
+    weather_df = dataframe.copy() if dataframe is not None else fetch_weather_dataframe(api_key=api_key)
+    weather_df = _normalize_dataframe_for_storage(weather_df)
+    weather_df.to_csv(output, index=False, encoding="utf-8-sig")
+    return weather_df
+
+
+def save_weather_sqlite(
+    output_path: str | Path = DEFAULT_DB_PATH,
+    api_key: str | None = None,
+    dataframe: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    weather_df = dataframe.copy() if dataframe is not None else fetch_weather_dataframe(api_key=api_key)
+    weather_df = _normalize_dataframe_for_storage(weather_df)
+    initialize_weather_database(output_path)
+
+    insert_sql = f"""
+        INSERT INTO {WEATHER_TABLE_NAME} (
+            region, date, min_temp, max_temp, avg_temp, lat, lon
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """
+    records = [
+        (
+            row.region,
+            row.date,
+            float(row.min_temp),
+            float(row.max_temp),
+            float(row.avg_temp),
+            float(row.lat),
+            float(row.lon),
+        )
+        for row in weather_df.itertuples(index=False)
+    ]
+
+    with _connect_sqlite(output_path) as connection:
+        connection.execute(f"DELETE FROM {WEATHER_TABLE_NAME}")
+        connection.executemany(insert_sql, records)
+
+    return weather_df
+
+
+def save_weather_artifacts(
+    csv_path: str | Path = DEFAULT_CSV_PATH,
+    db_path: str | Path = DEFAULT_DB_PATH,
+    api_key: str | None = None,
+) -> pd.DataFrame:
+    weather_df = fetch_weather_dataframe(api_key=api_key)
+    save_weather_csv(output_path=csv_path, dataframe=weather_df)
+    save_weather_sqlite(output_path=db_path, dataframe=weather_df)
+    return weather_df
 
 
 def load_weather_csv(csv_path: str | Path = DEFAULT_CSV_PATH) -> pd.DataFrame:
     path = Path(csv_path)
     if not path.exists():
-        return pd.DataFrame()
+        return pd.DataFrame(columns=WEATHER_COLUMNS)
     dataframe = pd.read_csv(path)
-    numeric_columns = ["min_temp", "max_temp", "avg_temp", "lat", "lon"]
-    for column in numeric_columns:
-        if column in dataframe:
-            dataframe[column] = pd.to_numeric(dataframe[column], errors="coerce")
-    return dataframe
+    return _normalize_dataframe_for_storage(dataframe)
+
+
+def load_weather_sqlite(db_path: str | Path = DEFAULT_DB_PATH) -> pd.DataFrame:
+    path = Path(db_path)
+    if not path.exists():
+        return pd.DataFrame(columns=WEATHER_COLUMNS)
+
+    initialize_weather_database(path)
+    query = f"""
+        SELECT region, date, min_temp, max_temp, avg_temp, lat, lon
+        FROM {WEATHER_TABLE_NAME}
+    """
+    with _connect_sqlite(path) as connection:
+        dataframe = pd.read_sql_query(query, connection)
+    return _normalize_dataframe_for_storage(dataframe)
+
+
+def get_available_regions(db_path: str | Path = DEFAULT_DB_PATH) -> list[str]:
+    dataframe = load_weather_sqlite(db_path)
+    if dataframe.empty:
+        return []
+
+    region_values = set(dataframe["region"].astype(str).tolist())
+    return [region for region in REGION_METADATA if region in region_values]
+
+
+def load_region_forecast(region: str, db_path: str | Path = DEFAULT_DB_PATH) -> pd.DataFrame:
+    path = Path(db_path)
+    if not path.exists():
+        return pd.DataFrame(columns=WEATHER_COLUMNS)
+
+    initialize_weather_database(path)
+    query = f"""
+        SELECT region, date, min_temp, max_temp, avg_temp, lat, lon
+        FROM {WEATHER_TABLE_NAME}
+        WHERE region = ?
+        ORDER BY date
+    """
+    with _connect_sqlite(path) as connection:
+        dataframe = pd.read_sql_query(query, connection, params=[region])
+    return _normalize_dataframe_for_storage(dataframe)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Fetch 7-day agricultural weather forecast from CWA and save as CSV."
+        description="Fetch 7-day agricultural weather forecast from CWA and save as CSV + SQLite."
     )
     parser.add_argument("--api-key", dest="api_key", help="CWA API authorization key")
     parser.add_argument(
@@ -449,10 +601,20 @@ def main() -> None:
         default=str(DEFAULT_CSV_PATH),
         help=f"Output CSV path (default: {DEFAULT_CSV_PATH})",
     )
+    parser.add_argument(
+        "--db-output",
+        default=str(DEFAULT_DB_PATH),
+        help=f"Output SQLite path (default: {DEFAULT_DB_PATH})",
+    )
     args = parser.parse_args()
 
-    dataframe = save_weather_csv(output_path=args.output, api_key=args.api_key)
+    dataframe = save_weather_artifacts(
+        csv_path=args.output,
+        db_path=args.db_output,
+        api_key=args.api_key,
+    )
     print(f"Saved {len(dataframe)} rows to {Path(args.output).resolve()}")
+    print(f"Saved {len(dataframe)} rows to {Path(args.db_output).resolve()}")
     print(dataframe.head(12).to_string(index=False))
 
 
