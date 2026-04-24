@@ -1,20 +1,13 @@
 from __future__ import annotations
 
 import json
-import os
-import time
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
-from dotenv import load_dotenv
+from weather_service import DEFAULT_CSV_PATH, load_weather_csv
 
-from weather_service import fetch_weather_dataframe
-
-CACHE_TTL_SECONDS = 1800
-_CACHE_PAYLOAD: dict | None = None
-_CACHE_TS = 0.0
-
-load_dotenv()
+DATA_PATH = Path(DEFAULT_CSV_PATH)
 
 
 class handler(BaseHTTPRequestHandler):
@@ -33,35 +26,35 @@ class handler(BaseHTTPRequestHandler):
         self._send_json(200, {"ok": True})
 
     def do_GET(self) -> None:
-        global _CACHE_PAYLOAD, _CACHE_TS
         try:
             query = parse_qs(urlparse(self.path).query)
             selected_date = query.get("date", [""])[0].strip()
 
-            api_key = os.getenv("CWA_API_KEY", "").strip()
-            if not api_key:
+            dataframe = load_weather_csv(DATA_PATH)
+            if dataframe.empty:
                 self._send_json(
-                    400,
-                    {"error": "Missing API key. Please set CWA_API_KEY in environment variables."},
+                    503,
+                    {
+                        "error": "Cached weather data is not ready yet. Run the scheduled refresh job first."
+                    },
                 )
                 return
 
-            now = time.time()
-            if _CACHE_PAYLOAD is None or (now - _CACHE_TS) > CACHE_TTL_SECONDS:
-                dataframe = fetch_weather_dataframe(api_key=api_key)
-                _CACHE_PAYLOAD = dataframe.to_dict(orient="records")
-                _CACHE_TS = now
-
-            records = _CACHE_PAYLOAD
             if selected_date:
-                records = [row for row in records if str(row.get("date", "")) == selected_date]
+                dataframe = dataframe[dataframe["date"].astype(str) == selected_date].copy()
+
+            records = dataframe.to_dict(orient="records")
+            last_updated = None
+            if DATA_PATH.exists():
+                last_updated = DATA_PATH.stat().st_mtime
 
             self._send_json(
                 200,
                 {
                     "count": len(records),
-                    "cache_ttl_seconds": CACHE_TTL_SECONDS,
                     "data": records,
+                    "data_source": "shared_csv_cache",
+                    "last_updated_unix": last_updated,
                 },
             )
         except Exception as exc:

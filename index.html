@@ -63,25 +63,13 @@
         align-items: center;
       }
 
-      select,
-      button {
+      select {
         border-radius: 8px;
         border: 1px solid var(--line);
         background: white;
         color: var(--text);
         padding: 8px 12px;
         font-size: 0.95rem;
-      }
-
-      button {
-        background: var(--accent);
-        color: #fff;
-        border: none;
-        cursor: pointer;
-      }
-
-      button:hover {
-        filter: brightness(1.05);
       }
 
       .layout {
@@ -160,7 +148,6 @@
         <div class="control-row">
           <label for="date-select">日期：</label>
           <select id="date-select"></select>
-          <button id="refresh-btn" type="button">重新載入</button>
         </div>
       </div>
 
@@ -197,7 +184,6 @@
       const dateSelect = document.getElementById("date-select");
       const tableBody = document.getElementById("table-body");
       const statusText = document.getElementById("status-text");
-      const refreshBtn = document.getElementById("refresh-btn");
 
       const map = L.map("map").setView([23.7, 121.0], 7);
       L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
@@ -261,11 +247,11 @@
           tableBody.appendChild(tr);
         });
 
-        statusText.textContent = `${selectedDate} 共 ${rows.length} 筆區域資料`;
+        statusText.textContent = `${selectedDate} 共 ${rows.length} 筆區域資料。前端目前只顯示後端共享快取。`;
       }
 
       async function fetchWeatherData() {
-        statusText.textContent = "正在從後端 API 載入資料...";
+        statusText.textContent = "正在讀取後端共享快取...";
         try {
           const response = await fetch("/api/weather", { method: "GET" });
           const result = await response.json();
@@ -287,7 +273,6 @@
         renderMapAndTable(event.target.value);
       });
 
-      refreshBtn.addEventListener("click", fetchWeatherData);
       fetchWeatherData();
     </script>
   </body>

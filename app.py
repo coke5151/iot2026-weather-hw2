@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import folium
 import pandas as pd
 import streamlit as st
 
-from weather_service import DEFAULT_CSV_PATH, REGION_METADATA, load_weather_csv, save_weather_csv
+from weather_service import DEFAULT_CSV_PATH, REGION_METADATA, load_weather_csv
 
 DATA_PATH = Path(DEFAULT_CSV_PATH)
 PAGE_TITLE = "Taiwan 7-Day Agricultural Forecast"
@@ -21,19 +20,6 @@ def _temperature_to_color(avg_temp: float) -> str:
     if avg_temp <= 30:
         return "#f59e0b"
     return "#ef4444"
-
-
-def _get_configured_api_key() -> str:
-    secret_key = ""
-    try:
-        secret_key = st.secrets.get("CWA_API_KEY", "")
-    except Exception:
-        secret_key = ""
-    return os.getenv("CWA_API_KEY", secret_key).strip()
-
-
-def _is_api_key_configured() -> bool:
-    return bool(_get_configured_api_key())
 
 
 def _inject_styles() -> None:
@@ -278,7 +264,6 @@ def _format_last_updated() -> str:
 
 
 def _build_hero() -> None:
-    key_state = "已設定" if _is_api_key_configured() else "未設定"
     data_state = "已載入資料" if DATA_PATH.exists() else "尚無本機 CSV"
     st.markdown(
         f"""
@@ -286,14 +271,14 @@ def _build_hero() -> None:
           <div class="hero-kicker">Agricultural Weather Dashboard</div>
           <div class="hero-title">{PAGE_TITLE}</div>
           <div class="hero-subtitle">
-            重新整理版面後，控制項集中在主畫面，地圖、摘要與明細表分區更清楚。
-            CWA API Key 現在只從伺服器端環境變數或 Streamlit Secrets 讀取，不再在頁面上顯示或回填。
+            這個頁面現在是純讀取模式。所有使用者都只會看到同一份後端快取資料，
+            前端不會提供重新抓取按鈕，也不會直接呼叫 CWA API。
           </div>
           <div class="hero-meta">
             <span class="hero-chip">資料集: CWA F-A0010-001</span>
-            <span class="hero-chip">Key 狀態: {key_state}</span>
             <span class="hero-chip">CSV 狀態: {data_state}</span>
             <span class="hero-chip">最後更新: {_format_last_updated()}</span>
+            <span class="hero-chip">更新模式: 後端排程寫入快取</span>
           </div>
         </section>
         """,
@@ -378,14 +363,6 @@ def _initialize_state() -> None:
         st.session_state["weather_df"] = load_weather_csv(DATA_PATH)
 
 
-def _fetch_latest_data() -> None:
-    api_key = _get_configured_api_key()
-    if not api_key:
-        raise ValueError("CWA_API_KEY 尚未設定。請在 .env 或 Streamlit Secrets 中設定後再更新資料。")
-    dataframe = save_weather_csv(DATA_PATH, api_key=api_key)
-    st.session_state["weather_df"] = dataframe
-
-
 def _render_summary_card(title: str, value: str, detail: str) -> None:
     st.markdown(
         f"""
@@ -468,8 +445,7 @@ def _render_rankings(filtered_df: pd.DataFrame) -> None:
 
 
 def _render_control_panel(available_dates: list[str]) -> str:
-    key_ready = _is_api_key_configured()
-    controls = st.columns([1.6, 0.95, 1.3], gap="medium")
+    controls = st.columns([1.25, 1.65], gap="medium")
 
     with controls[0]:
         st.markdown('<div class="panel-label">Forecast Date</div>', unsafe_allow_html=True)
@@ -482,30 +458,13 @@ def _render_control_panel(available_dates: list[str]) -> str:
         st.caption("切換日期後，地圖、摘要與表格會同步更新。")
 
     with controls[1]:
-        st.markdown('<div class="panel-label">Data Refresh</div>', unsafe_allow_html=True)
-        refresh_clicked = st.button(
-            "重新抓取 CWA 資料",
-            type="primary",
-            disabled=not key_ready,
-            use_container_width=True,
-        )
-        if refresh_clicked:
-            with st.spinner("正在從 CWA 更新資料..."):
-                _fetch_latest_data()
-            st.success(f"已更新資料並寫入 {DATA_PATH.resolve()}")
-        if not key_ready:
-            st.caption("未設定 CWA_API_KEY，因此已停用重新抓取。")
-        else:
-            st.caption("更新時只使用伺服器端金鑰，不會在前端顯示。")
-
-    with controls[2]:
         st.markdown(
             """
             <div class="note-card">
-              <div class="panel-label">Security</div>
+              <div class="panel-label">Read Only</div>
               <div class="security-callout">
-                畫面不再提供 API Key 輸入框，也不會把已設定的金鑰回填到任何欄位。
-                若要更新資料，請只在 <code>.env</code> 或 Streamlit Secrets 設定 <code>CWA_API_KEY</code>。
+                這個前端不提供重新整理資料的按鈕，也不會讓使用者直接觸發 CWA 請求。
+                後端排程只要定時更新 <code>weather_data.csv</code>，所有人看到的就會是同一份資料。
               </div>
             </div>
             """,
@@ -528,15 +487,9 @@ def main() -> None:
     dataframe = st.session_state.get("weather_df", pd.DataFrame())
 
     if dataframe.empty:
-        if _is_api_key_configured():
-            st.info("目前尚未載入資料。請點擊「重新抓取 CWA 資料」建立最新 CSV。")
-        else:
-            st.warning("目前沒有可顯示資料，且尚未設定 CWA_API_KEY。")
-            st.info("請在 `.env` 或 Streamlit Secrets 設定 `CWA_API_KEY` 後再重新抓取資料。")
+        st.warning("目前沒有可顯示資料。請先由後端排程執行 `fetch_weather_data.py` 產生 `weather_data.csv`。")
+        st.info("前端現在只讀取快取檔案，不會自行呼叫 CWA API。")
         st.stop()
-
-    if not _is_api_key_configured():
-        st.info("未偵測到伺服器端 CWA_API_KEY。目前仍可瀏覽既有 CSV，但重新抓取功能會維持停用。")
 
     available_dates = sorted(dataframe["date"].astype(str).unique().tolist())
     selected_date = _render_control_panel(available_dates)
