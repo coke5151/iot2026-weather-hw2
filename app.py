@@ -42,13 +42,16 @@ def _inject_styles() -> None:
         }
 
         .block-container {
-            max-width: 1280px;
-            padding-top: 1rem;
-            padding-bottom: 3rem;
+            max-width: 1320px;
+            padding: 1.1rem 1.4rem 4rem;
         }
 
         [data-testid="stSidebar"] {
             background: #f7fbfa;
+        }
+
+        div[data-testid="stHorizontalBlock"] {
+            align-items: stretch;
         }
 
         .hero-panel {
@@ -57,7 +60,8 @@ def _inject_styles() -> None:
             border-radius: 28px;
             box-shadow: 0 24px 64px rgba(15, 23, 42, 0.14);
             color: #ffffff;
-            padding: 2rem 2.2rem;
+            margin-bottom: 1.35rem;
+            padding: 2.15rem 2.35rem;
         }
 
         .hero-kicker {
@@ -86,8 +90,8 @@ def _inject_styles() -> None:
         .hero-meta {
             display: flex;
             flex-wrap: wrap;
-            gap: 0.7rem;
-            margin-top: 1.1rem;
+            gap: 0.85rem;
+            margin-top: 1.35rem;
         }
 
         .hero-chip {
@@ -95,7 +99,7 @@ def _inject_styles() -> None:
             border: 1px solid rgba(255, 255, 255, 0.18);
             border-radius: 999px;
             font-size: 0.92rem;
-            padding: 0.48rem 0.78rem;
+            padding: 0.55rem 0.84rem;
         }
 
         .panel-label {
@@ -111,11 +115,11 @@ def _inject_styles() -> None:
             background: linear-gradient(180deg, #f8fafc 0%, #eef7f5 100%);
             border: 1px solid rgba(15, 118, 110, 0.12);
             border-radius: 18px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
             color: #243b53;
             font-size: 0.95rem;
             line-height: 1.7;
-            min-height: 124px;
-            padding: 1rem 1.1rem;
+            padding: 0.9rem 1.05rem;
         }
 
         .summary-card {
@@ -123,8 +127,8 @@ def _inject_styles() -> None:
             border: 1px solid rgba(15, 23, 42, 0.08);
             border-radius: 20px;
             box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
-            min-height: 132px;
-            padding: 1.1rem 1.15rem;
+            min-height: 148px;
+            padding: 1.2rem 1.25rem;
         }
 
         .summary-label {
@@ -152,22 +156,24 @@ def _inject_styles() -> None:
 
         .section-title {
             color: #102a43;
-            font-size: 1.12rem;
+            font-size: 1.16rem;
             font-weight: 800;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.35rem;
         }
 
         .section-copy {
             color: #627d98;
-            margin-bottom: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 1.05rem;
+            max-width: 42rem;
         }
 
         .ranking-card {
             background: rgba(255, 255, 255, 0.86);
             border: 1px solid rgba(15, 23, 42, 0.08);
             border-radius: 18px;
-            margin-bottom: 0.8rem;
-            padding: 1rem 1.05rem;
+            margin-bottom: 0.9rem;
+            padding: 1.05rem 1.1rem;
         }
 
         .ranking-head {
@@ -216,6 +222,14 @@ def _inject_styles() -> None:
             line-height: 1.65;
         }
 
+        .layout-gap {
+            height: 1.35rem;
+        }
+
+        .layout-gap.tight {
+            height: 0.85rem;
+        }
+
         .stButton > button {
             background: linear-gradient(135deg, #0f766e 0%, #0f4c81 100%);
             border: none;
@@ -243,13 +257,35 @@ def _inject_styles() -> None:
         }
 
         [data-testid="stDataFrame"] {
+            background: rgba(255, 255, 255, 0.92);
             border: 1px solid rgba(15, 23, 42, 0.08);
             border-radius: 18px;
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.04);
             overflow: hidden;
         }
 
         [data-testid="stAlert"] {
             border-radius: 16px;
+        }
+
+        [data-baseweb="tab-list"] {
+            gap: 0.55rem;
+            margin-bottom: 1rem;
+        }
+
+        button[data-baseweb="tab"] {
+            background: rgba(255, 255, 255, 0.82);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            border-radius: 999px;
+            color: #486581;
+            font-weight: 700;
+            padding: 0.35rem 0.95rem;
+        }
+
+        button[data-baseweb="tab"][aria-selected="true"] {
+            background: linear-gradient(135deg, rgba(15, 118, 110, 0.14), rgba(15, 76, 129, 0.14));
+            border-color: rgba(15, 118, 110, 0.24);
+            color: #0f4c81;
         }
         </style>
         """,
@@ -270,10 +306,6 @@ def _build_hero() -> None:
         <section class="hero-panel">
           <div class="hero-kicker">Agricultural Weather Dashboard</div>
           <div class="hero-title">{PAGE_TITLE}</div>
-          <div class="hero-subtitle">
-            這個頁面現在是純讀取模式。所有使用者都只會看到同一份後端快取資料，
-            前端不會提供重新抓取按鈕，也不會直接呼叫 CWA API。
-          </div>
           <div class="hero-meta">
             <span class="hero-chip">資料集: CWA F-A0010-001</span>
             <span class="hero-chip">CSV 狀態: {data_state}</span>
@@ -336,6 +368,53 @@ def _draw_temperature_map(filtered_df: pd.DataFrame, selected_date: str) -> foli
     return weather_map
 
 
+def _render_temperature_map_html(filtered_df: pd.DataFrame, selected_date: str) -> str:
+    default_center = [23.7, 121.0]
+    default_zoom = 7
+    weather_map = _draw_temperature_map(filtered_df, selected_date)
+    map_html = weather_map.get_root().render()
+    map_name = weather_map.get_name()
+    reset_view_control = f"""
+    <script>
+      (function() {{
+        const map = {map_name};
+        const defaultCenter = [{default_center[0]}, {default_center[1]}];
+        const defaultZoom = {default_zoom};
+        const resetControl = L.control({{ position: "topleft" }});
+
+        resetControl.onAdd = function() {{
+          const container = L.DomUtil.create("div", "leaflet-bar leaflet-control");
+          const button = L.DomUtil.create("a", "", container);
+          button.href = "#";
+          button.title = "重置地圖位置";
+          button.setAttribute("aria-label", "重置地圖位置");
+          button.innerHTML = "重置";
+          button.style.width = "auto";
+          button.style.minWidth = "58px";
+          button.style.padding = "0 10px";
+          button.style.background = "#ffffff";
+          button.style.color = "#102a43";
+          button.style.fontSize = "13px";
+          button.style.fontWeight = "700";
+
+          L.DomEvent.disableClickPropagation(container);
+          L.DomEvent.on(button, "click", function(event) {{
+            L.DomEvent.stop(event);
+            map.setView(defaultCenter, defaultZoom);
+          }});
+
+          return container;
+        }};
+
+        resetControl.addTo(map);
+      }})();
+    </script>
+    """
+    if "</html>" in map_html:
+        return map_html.replace("</html>", f"{reset_view_control}\n</html>", 1)
+    return map_html + reset_view_control
+
+
 def _format_table(filtered_df: pd.DataFrame) -> pd.DataFrame:
     table_df = filtered_df.copy()
     table_df = table_df[["region", "min_temp", "max_temp", "avg_temp"]]
@@ -383,31 +462,36 @@ def _render_summary_cards(filtered_df: pd.DataFrame, selected_date: str) -> None
     widest_range_row = filtered_df.loc[widest_range]
     regional_mean = filtered_df["avg_temp"].mean()
 
-    cards = st.columns(4, gap="medium")
-    with cards[0]:
-        _render_summary_card(
+    card_specs = [
+        (
             "區域平均",
             f"{regional_mean:.1f} °C",
             f"{selected_date} 六大區域的平均溫度概況",
-        )
-    with cards[1]:
-        _render_summary_card(
+        ),
+        (
             "最暖區域",
             str(warmest_row["region"]),
             f"平均溫 {float(warmest_row['avg_temp']):.1f} °C",
-        )
-    with cards[2]:
-        _render_summary_card(
+        ),
+        (
             "最涼區域",
             str(coolest_row["region"]),
             f"平均溫 {float(coolest_row['avg_temp']):.1f} °C",
-        )
-    with cards[3]:
-        _render_summary_card(
+        ),
+        (
             "最大日溫差",
             str(widest_range_row["region"]),
             f"高低溫差 {float(widest_range_row['max_temp'] - widest_range_row['min_temp']):.1f} °C",
-        )
+        ),
+    ]
+
+    for row_index in range(0, len(card_specs), 2):
+        cards = st.columns(2, gap="large")
+        for column, (title, value, detail) in zip(cards, card_specs[row_index : row_index + 2]):
+            with column:
+                _render_summary_card(title, value, detail)
+        if row_index + 2 < len(card_specs):
+            st.markdown('<div class="layout-gap tight"></div>', unsafe_allow_html=True)
 
 
 def _render_rankings(filtered_df: pd.DataFrame) -> None:
@@ -445,7 +529,7 @@ def _render_rankings(filtered_df: pd.DataFrame) -> None:
 
 
 def _render_control_panel(available_dates: list[str]) -> str:
-    controls = st.columns([1.25, 1.65], gap="medium")
+    controls = st.columns([1.2, 1], gap="large")
 
     with controls[0]:
         st.markdown('<div class="panel-label">Forecast Date</div>', unsafe_allow_html=True)
@@ -461,10 +545,9 @@ def _render_control_panel(available_dates: list[str]) -> str:
         st.markdown(
             """
             <div class="note-card">
-              <div class="panel-label">Read Only</div>
+              <div class="panel-label">資料更新</div>
               <div class="security-callout">
-                這個前端不提供重新整理資料的按鈕，也不會讓使用者直接觸發 CWA 請求。
-                後端排程只要定時更新 <code>weather_data.csv</code>，所有人看到的就會是同一份資料。
+                資料每 6 小時會由 Github Action 自動刷新。
               </div>
             </div>
             """,
@@ -499,9 +582,11 @@ def main() -> None:
         st.warning("找不到該日期的資料，請改選其他日期。")
         st.stop()
 
+    st.markdown('<div class="layout-gap"></div>', unsafe_allow_html=True)
     _render_summary_cards(filtered_df, selected_date)
+    st.markdown('<div class="layout-gap"></div>', unsafe_allow_html=True)
 
-    map_col, insight_col = st.columns([2.05, 1], gap="large")
+    map_col, insight_col = st.columns([1.75, 1], gap="large")
 
     with map_col:
         st.markdown('<div class="section-title">地圖總覽</div>', unsafe_allow_html=True)
@@ -509,18 +594,17 @@ def main() -> None:
             '<div class="section-copy">圓點顏色依平均溫度分級，點擊標記可查看當日高低溫。</div>',
             unsafe_allow_html=True,
         )
-        weather_map = _draw_temperature_map(filtered_df, selected_date)
-        st.components.v1.html(weather_map.get_root().render(), height=640, scrolling=False)
+        st.components.v1.html(_render_temperature_map_html(filtered_df, selected_date), height=620, scrolling=False)
 
     with insight_col:
         _render_rankings(filtered_df)
 
-    detail_col, coord_col = st.columns([1.8, 1], gap="large")
+    st.markdown('<div class="layout-gap"></div>', unsafe_allow_html=True)
+    detail_tab, coord_tab = st.tabs(["溫度明細表", "地區座標參考"])
 
-    with detail_col:
-        st.markdown('<div class="section-title">溫度明細表</div>', unsafe_allow_html=True)
+    with detail_tab:
         st.markdown(
-            '<div class="section-copy">表格保留當日各區域最低、最高與平均溫度，方便進一步匯出或比對。</div>',
+            '<div class="section-copy">保留各區域最低、最高與平均溫度，方便快速比對。</div>',
             unsafe_allow_html=True,
         )
         st.dataframe(
@@ -534,10 +618,9 @@ def main() -> None:
             },
         )
 
-    with coord_col:
-        st.markdown('<div class="section-title">地區座標參考</div>', unsafe_allow_html=True)
+    with coord_tab:
         st.markdown(
-            '<div class="section-copy">Folium 地圖使用近似座標，足夠呈現六大區域的空間分布。</div>',
+            '<div class="section-copy">六大區域的近似中心座標，方便對照地圖標記位置。</div>',
             unsafe_allow_html=True,
         )
         st.dataframe(

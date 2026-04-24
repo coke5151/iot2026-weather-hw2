@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_a45c17def4457f1500e4b10c3bcfb396 {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+
+            <style>html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            </style>
+
+            <style>#map {
+                position:absolute;
+                top:0;
+                bottom:0;
+                right:0;
+                left:0;
+                }
+            </style>
+
+            <script>
+                L_NO_TOUCH = false;
+                L_DISABLE_3D = false;
+            </script>
+
+        
+</head>
+<body>
+    
+    
+    <div style="
+        position: fixed;
+        bottom: 36px;
+        left: 36px;
+        z-index: 9999;
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid #d9e2ec;
+        border-radius: 12px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+        padding: 12px 14px;
+        font-size: 13px;
+        line-height: 1.8;
+    ">
+      <b>平均溫度色階</b><br>
+      <span style="color: #3b82f6;">●</span> &lt; 20°C<br>
+      <span style="color: #10b981;">●</span> 20-25°C<br>
+      <span style="color: #f59e0b;">●</span> 25-30°C<br>
+      <span style="color: #ef4444;">●</span> &gt; 30°C
+    </div>
+    
+    
+            <div class="folium-map" id="map_a45c17def4457f1500e4b10c3bcfb396" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_a45c17def4457f1500e4b10c3bcfb396 = L.map(
+                "map_a45c17def4457f1500e4b10c3bcfb396",
+                {
+                    center: [23.7, 121.0],
+                    crs: L.CRS.EPSG3857,
+                    ...{
+  "zoom": 7,
+  "zoomControl": true,
+  "preferCanvas": false,
+}
+
+                }
+            );
+
+            
+
+        
+    
+            var tile_layer_d68a1438fab7deaf3155693dc4eeef88 = L.tileLayer(
+                "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+                {
+  "minZoom": 0,
+  "maxZoom": 20,
+  "maxNativeZoom": 20,
+  "noWrap": false,
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors \u0026copy; \u003ca href=\"https://carto.com/attributions\"\u003eCARTO\u003c/a\u003e",
+  "subdomains": "abcd",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_d68a1438fab7deaf3155693dc4eeef88.addTo(map_a45c17def4457f1500e4b10c3bcfb396);
+        
+    
+            var circle_marker_cc00ce3559fe96f13d18119c8d1836a1 = L.circleMarker(
+                [25.05, 121.53],
+                {"bubblingMouseEvents": true, "color": "#10b981", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#10b981", "fillOpacity": 0.82, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_a45c17def4457f1500e4b10c3bcfb396);
+        
+    
+        var popup_e8287b4eb20de134a7fa834598796242 = L.popup({
+  "maxWidth": 260,
+});
+
+        
+            
+                var html_59704b5cf21227c217e1cdac0f937eb3 = $(`<div id="html_59704b5cf21227c217e1cdac0f937eb3" style="width: 100.0%; height: 100.0%;"><b>北部地區</b><br>日期: 2026-04-24<br>最低溫: 20.0 °C<br>最高溫: 24.0 °C<br>平均溫: 22.0 °C</div>`)[0];
+                popup_e8287b4eb20de134a7fa834598796242.setContent(html_59704b5cf21227c217e1cdac0f937eb3);
+            
+        
+
+        circle_marker_cc00ce3559fe96f13d18119c8d1836a1.bindPopup(popup_e8287b4eb20de134a7fa834598796242)
+        ;
+
+        
+    
+    
+            circle_marker_cc00ce3559fe96f13d18119c8d1836a1.bindTooltip(
+                `<div>
+                     北部地區 (22.0 °C)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_48f945b1511e33f05f3ec89fab928818 = L.circleMarker(
+                [24.15, 120.67],
+                {"bubblingMouseEvents": true, "color": "#10b981", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#10b981", "fillOpacity": 0.82, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_a45c17def4457f1500e4b10c3bcfb396);
+        
+    
+        var popup_452537c5f163943fed1e9ce23b847f33 = L.popup({
+  "maxWidth": 260,
+});
+
+        
+            
+                var html_0ffb842521432f82d72e2cc000213717 = $(`<div id="html_0ffb842521432f82d72e2cc000213717" style="width: 100.0%; height: 100.0%;"><b>中部地區</b><br>日期: 2026-04-24<br>最低溫: 22.0 °C<br>最高溫: 28.0 °C<br>平均溫: 25.0 °C</div>`)[0];
+                popup_452537c5f163943fed1e9ce23b847f33.setContent(html_0ffb842521432f82d72e2cc000213717);
+            
+        
+
+        circle_marker_48f945b1511e33f05f3ec89fab928818.bindPopup(popup_452537c5f163943fed1e9ce23b847f33)
+        ;
+
+        
+    
+    
+            circle_marker_48f945b1511e33f05f3ec89fab928818.bindTooltip(
+                `<div>
+                     中部地區 (25.0 °C)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_a17f07b5f7fc3518e514d48a4e4ef7c0 = L.circleMarker(
+                [22.63, 120.3],
+                {"bubblingMouseEvents": true, "color": "#f59e0b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f59e0b", "fillOpacity": 0.82, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_a45c17def4457f1500e4b10c3bcfb396);
+        
+    
+        var popup_8b47bd1f221ec1d70cda2f6c77e5f67e = L.popup({
+  "maxWidth": 260,
+});
+
+        
+            
+                var html_c9d044c90540e5a904f6a47b2b43fec9 = $(`<div id="html_c9d044c90540e5a904f6a47b2b43fec9" style="width: 100.0%; height: 100.0%;"><b>南部地區</b><br>日期: 2026-04-24<br>最低溫: 24.0 °C<br>最高溫: 31.0 °C<br>平均溫: 27.5 °C</div>`)[0];
+                popup_8b47bd1f221ec1d70cda2f6c77e5f67e.setContent(html_c9d044c90540e5a904f6a47b2b43fec9);
+            
+        
+
+        circle_marker_a17f07b5f7fc3518e514d48a4e4ef7c0.bindPopup(popup_8b47bd1f221ec1d70cda2f6c77e5f67e)
+        ;
+
+        
+    
+    
+            circle_marker_a17f07b5f7fc3518e514d48a4e4ef7c0.bindTooltip(
+                `<div>
+                     南部地區 (27.5 °C)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_f5d5dc07bd56c82da4c8ef164d021584 = L.circleMarker(
+                [24.75, 121.75],
+                {"bubblingMouseEvents": true, "color": "#10b981", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#10b981", "fillOpacity": 0.82, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_a45c17def4457f1500e4b10c3bcfb396);
+        
+    
+        var popup_a8828edaf8e1bbe3545cc256add6cb33 = L.popup({
+  "maxWidth": 260,
+});
+
+        
+            
+                var html_4bcbc8ce718d4fb70765eee0aba52a70 = $(`<div id="html_4bcbc8ce718d4fb70765eee0aba52a70" style="width: 100.0%; height: 100.0%;"><b>東北部地區</b><br>日期: 2026-04-24<br>最低溫: 20.0 °C<br>最高溫: 22.0 °C<br>平均溫: 21.0 °C</div>`)[0];
+                popup_a8828edaf8e1bbe3545cc256add6cb33.setContent(html_4bcbc8ce718d4fb70765eee0aba52a70);
+            
+        
+
+        circle_marker_f5d5dc07bd56c82da4c8ef164d021584.bindPopup(popup_a8828edaf8e1bbe3545cc256add6cb33)
+        ;
+
+        
+    
+    
+            circle_marker_f5d5dc07bd56c82da4c8ef164d021584.bindTooltip(
+                `<div>
+                     東北部地區 (21.0 °C)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_c9b1bae026766e65f578860d778d40f3 = L.circleMarker(
+                [23.99, 121.6],
+                {"bubblingMouseEvents": true, "color": "#10b981", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#10b981", "fillOpacity": 0.82, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_a45c17def4457f1500e4b10c3bcfb396);
+        
+    
+        var popup_aa6ed4dc10e6c2d4c9d3037678028cab = L.popup({
+  "maxWidth": 260,
+});
+
+        
+            
+                var html_79a61b39bdfe16beb0d10b888b4e229f = $(`<div id="html_79a61b39bdfe16beb0d10b888b4e229f" style="width: 100.0%; height: 100.0%;"><b>東部地區</b><br>日期: 2026-04-24<br>最低溫: 21.0 °C<br>最高溫: 24.0 °C<br>平均溫: 22.5 °C</div>`)[0];
+                popup_aa6ed4dc10e6c2d4c9d3037678028cab.setContent(html_79a61b39bdfe16beb0d10b888b4e229f);
+            
+        
+
+        circle_marker_c9b1bae026766e65f578860d778d40f3.bindPopup(popup_aa6ed4dc10e6c2d4c9d3037678028cab)
+        ;
+
+        
+    
+    
+            circle_marker_c9b1bae026766e65f578860d778d40f3.bindTooltip(
+                `<div>
+                     東部地區 (22.5 °C)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_54394d401bc1d87da516f0e1b0dbd11b = L.circleMarker(
+                [22.76, 121.15],
+                {"bubblingMouseEvents": true, "color": "#10b981", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#10b981", "fillOpacity": 0.82, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_a45c17def4457f1500e4b10c3bcfb396);
+        
+    
+        var popup_206d00c4076951f6c1baea96d1c0b234 = L.popup({
+  "maxWidth": 260,
+});
+
+        
+            
+                var html_72942b813f56cd6eba131914d2450ff4 = $(`<div id="html_72942b813f56cd6eba131914d2450ff4" style="width: 100.0%; height: 100.0%;"><b>東南部地區</b><br>日期: 2026-04-24<br>最低溫: 23.0 °C<br>最高溫: 27.0 °C<br>平均溫: 25.0 °C</div>`)[0];
+                popup_206d00c4076951f6c1baea96d1c0b234.setContent(html_72942b813f56cd6eba131914d2450ff4);
+            
+        
+
+        circle_marker_54394d401bc1d87da516f0e1b0dbd11b.bindPopup(popup_206d00c4076951f6c1baea96d1c0b234)
+        ;
+
+        
+    
+    
+            circle_marker_54394d401bc1d87da516f0e1b0dbd11b.bindTooltip(
+                `<div>
+                     東南部地區 (25.0 °C)
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+</script>
+
+    <script>
+      (function() {
+        const map = map_a45c17def4457f1500e4b10c3bcfb396;
+        const defaultCenter = [23.7, 121.0];
+        const defaultZoom = 7;
+        const resetControl = L.control({ position: "topleft" });
+
+        resetControl.onAdd = function() {
+          const container = L.DomUtil.create("div", "leaflet-bar leaflet-control");
+          const button = L.DomUtil.create("a", "", container);
+          button.href = "#";
+          button.title = "重置地圖位置";
+          button.setAttribute("aria-label", "重置地圖位置");
+          button.innerHTML = "重置";
+          button.style.width = "auto";
+          button.style.minWidth = "58px";
+          button.style.padding = "0 10px";
+          button.style.background = "#ffffff";
+          button.style.color = "#102a43";
+          button.style.fontSize = "13px";
+          button.style.fontWeight = "700";
+
+          L.DomEvent.disableClickPropagation(container);
+          L.DomEvent.on(button, "click", function(event) {
+            L.DomEvent.stop(event);
+            map.setView(defaultCenter, defaultZoom);
+          });
+
+          return container;
+        };
+
+        resetControl.addTo(map);
+      })();
+    </script>
+    
+</html>
