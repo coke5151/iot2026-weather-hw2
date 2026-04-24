@@ -234,7 +234,7 @@ def _build_hero() -> None:
             <span class="hero-chip">資料集: CWA F-A0010-001</span>
             <span class="hero-chip">SQLite 狀態: {data_state}</span>
             <span class="hero-chip">最後更新: {_format_last_updated()}</span>
-            <span class="hero-chip">更新模式: 後端排程同步更新 CSV + SQLite</span>
+            <span class="hero-chip">更新模式: 後端排程同步更新 CSV + data.db</span>
           </div>
         </section>
         """,
@@ -410,7 +410,7 @@ def main() -> None:
 
     available_regions = get_available_regions(DATA_PATH)
     if not available_regions:
-        st.warning("目前沒有可顯示資料。請先由後端執行 `fetch_weather_data.py` 產生 `weather_data.db`。")
+        st.warning("目前沒有可顯示資料。請先由後端執行 `fetch_weather_data.py` 產生 `data.db`。")
         st.info("前端現在只讀取 SQLite 快取，不會自行呼叫 CWA API。")
         st.stop()
 
