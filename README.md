@@ -183,9 +183,10 @@ streamlit run app.py
 
 專案相關的聊天記錄都放在 `chats/` 資料夾中，目前包含：
 
-- `chats/00-initial-prompt.md`
-- `chats/01-build-first-mvp.md`
-- `chats/02-deploy.md`
-- `chats/03-ui-optimize.md`
+- [00-initial-prompt](./chats/00-initial-prompt.md)
+- [01-build-first-mvp](./chats/01-build-first-mvp.md)
+- [02-deploy](./chats/02-deploy.md)
+- [03-ui-optimize](./chats/03-ui-optimize.md)
+- [04-homework-requirement-fit](./chats/04-homework-requirement-fit.md)
 
 如果要回顧需求演進、部署調整或 UI 優化過程，可以直接查看這個資料夾。
