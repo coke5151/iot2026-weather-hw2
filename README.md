@@ -12,7 +12,9 @@
 
 ## 專案內容
 
-![專案小地圖 Demo](./image/project-mapview-demo.png)
+![專案 Demo #1](./image/project-demo-1.png)
+
+![專案 Demo #2](./image/project-demo-2.png)
 
 - `fetch_weather_data.py`：向 CWA 取得資料並整理成共享快取 `weather_data.csv` 與 `data.db`
 - `app.py`：Streamlit 主程式，負責地區下拉、一週折線圖與資料表顯示
