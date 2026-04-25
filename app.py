@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import folium
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 from weather_service import (
     DEFAULT_DB_PATH,
@@ -14,6 +16,7 @@ from weather_service import (
 
 DATA_PATH = Path(DEFAULT_DB_PATH)
 PAGE_TITLE = "Taiwan 7-Day Agricultural Forecast"
+TAIWAN_CENTER = (23.7, 121.0)
 
 
 def _inject_styles() -> None:
@@ -202,6 +205,15 @@ def _inject_styles() -> None:
             border-radius: 18px;
             box-shadow: 0 12px 24px rgba(15, 23, 42, 0.04);
             overflow: hidden;
+        }
+
+        .map-frame {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            border-radius: 18px;
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.04);
+            overflow: hidden;
+            padding: 0.5rem;
         }
 
         [data-testid="stAlert"] {
@@ -399,6 +411,85 @@ def _build_coordinate_table() -> pd.DataFrame:
     )
 
 
+def _build_taiwan_map(selected_region: str, available_regions: list[str]) -> folium.Map:
+    folium_map = folium.Map(
+        location=TAIWAN_CENTER,
+        zoom_start=7,
+        tiles="CartoDB positron",
+        control_scale=True,
+    )
+
+    for region_name in available_regions:
+        metadata = REGION_METADATA[region_name]
+        is_selected = region_name == selected_region
+        avg_temp_text = "目前無資料"
+        region_forecast = load_region_forecast(region_name, DATA_PATH)
+        if not region_forecast.empty:
+            weekly_avg = region_forecast["avg_temp"].mean()
+            avg_temp_text = f"七日平均溫 {weekly_avg:.1f} °C"
+
+        folium.CircleMarker(
+            location=(metadata["lat"], metadata["lon"]),
+            radius=14 if is_selected else 10,
+            color="#0f766e" if is_selected else "#2563eb",
+            weight=3 if is_selected else 2,
+            fill=True,
+            fill_color="#14b8a6" if is_selected else "#60a5fa",
+            fill_opacity=0.9,
+            tooltip=region_name,
+            popup=folium.Popup(
+                f"""
+                <div style="min-width: 150px;">
+                    <strong>{region_name}</strong><br>
+                    座標: {metadata['lat']:.2f}, {metadata['lon']:.2f}<br>
+                    {avg_temp_text}
+                </div>
+                """,
+                max_width=240,
+            ),
+        ).add_to(folium_map)
+
+    folium_map.get_root().html.add_child(
+        folium.Element(
+            """
+            <div style="
+                position: fixed;
+                bottom: 18px;
+                left: 18px;
+                z-index: 9999;
+                background: rgba(255, 255, 255, 0.96);
+                border: 1px solid rgba(15, 23, 42, 0.12);
+                border-radius: 12px;
+                box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+                color: #102a43;
+                font-family: 'Noto Sans TC', sans-serif;
+                font-size: 13px;
+                line-height: 1.6;
+                padding: 10px 12px;
+            ">
+                <div><span style="color:#0f766e;">●</span> 目前選取地區</div>
+                <div><span style="color:#2563eb;">●</span> 其他可查詢區域</div>
+            </div>
+            """
+        )
+    )
+    return folium_map
+
+
+def _render_taiwan_map(selected_region: str, available_regions: list[str]) -> None:
+    st.markdown('<div class="section-title">Folium 台灣地圖</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-copy">以台灣為中心顯示六大區域座標，當前選取地區會在地圖上高亮，點擊標記可查看座標與一週平均溫度。</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown('<div class="map-frame">', unsafe_allow_html=True)
+    components.html(
+        _build_taiwan_map(selected_region, available_regions)._repr_html_(),
+        height=520,
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
 def main() -> None:
     st.set_page_config(
         page_title=PAGE_TITLE,
@@ -432,7 +523,7 @@ def main() -> None:
         _render_region_insights(selected_region, forecast_df)
 
     st.markdown('<div class="layout-gap"></div>', unsafe_allow_html=True)
-    detail_tab, coord_tab = st.tabs(["一週預報表", "地區座標參考"])
+    detail_tab, map_tab, coord_tab = st.tabs(["一週預報表", "Folium 台灣地圖", "地區座標參考"])
 
     with detail_tab:
         st.markdown(
@@ -449,6 +540,9 @@ def main() -> None:
                 "平均溫 (°C)": st.column_config.NumberColumn(format="%.1f"),
             },
         )
+
+    with map_tab:
+        _render_taiwan_map(selected_region, available_regions)
 
     with coord_tab:
         st.markdown(
